@@ -1,0 +1,421 @@
+#!/bin/sh
+
+################################################################################
+# Copyright (c) 2015, Isaac (.ike) Levy
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 
+# 1. Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+# 
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+###############################################################################
+
+yell() { echo "$0: $*" >&2; }
+die() { yell "$*"; exit 111; }
+try() { "$@" || die "cannot $*"; }
+
+debug() { fd="${fd:-2}";[ -n "$DEBUG" ] && try echo "## $*" >&${fd}; }
+
+usage() {
+# accepts 1 user message as string
+fd="${fd:-2}" # stderr
+ec="${ec:-5}" # Input/output error
+try cat - 2>&$fd << EOM
+
+${0##*/} -- trigger PagerDuty alerts
+
+  usage:
+       ${0##*/}  command [args]
+       ${0##*/}  [-v|d|D] [-V]  [-h]
+
+  The ${0##*/}  utility can be used to trigger PD incidents, straight from the
+  shell, or any program.  PagerDuty "Trigger Events" are fully implemented as
+  command line arguements, but "Contexts" currently are not.
+  https://developer.pagerduty.com/documentation/integration/events/trigger
+
+  When successfully exiting, ${0##*/} will dump PagerDuty response messages
+  lazily into syslog.
+
+Arguements and config parameters for for ${0##*/}:
+
+     # service_key="string"
+     -s string
+           service_key, the only flag REQUIRED for use, may also be set in ENV.
+           The GUID of one of your "Generic API" services. This is the 
+           "service key" listed on a Generic API's service detail page.
+
+     # incident_key="string"
+     -k string
+           incident_key, default: behavior of -I arg.
+           Identifies the incident to which this trigger event should be
+           applied. If there's no open (i.e. unresolved) incident with this
+           key, a new one will be created. If there's already an open incident
+           with a matching key, this event will be appended to that incident's
+           log. The event key provides an easy way to "de-dup" problem reports.
+
+     -I    Host-unique incident key: default, ON
+           The event key provides a lazy way to "de-dup" problem reports.
+           Trigger alerts sent without explictly setting an incident_key.
+
+     -i    Allow PagerDuty to set a new unique incident key, explicitly creating
+           a new PD alert.
+
+     -t    Print incident_key string to stdout, useful when a parent program can
+           use this information to keep issue state.
+
+     # description="string"
+     -d string
+           description, default: "hostname, host ip's, parent process id"
+           A short description of the problem that led to this trigger. This
+           field (or a truncated version) will be used when generating phone
+           calls, SMS messages and alert emails. It will also appear on the
+           incidents tables in the PagerDuty UI. The maximum length is 1024
+           characters.
+           If this arg is not called, some basic host info will be used,
+           including: hostname, ip addresses, Parent PID of calling process.
+
+     # client="string"
+     -c string
+           client, default: "${0##*/} ${version}"
+           The name of the monitoring client that is triggering this event.
+
+     # client_url="proto://fqdn.tld/path/uri/"
+     -u url
+           client_url, default: ""
+           The URL of the monitoring client that is triggering this event.
+
+     # event_type="string"
+     -e string
+           event_type, default: "trigger"
+           PagerDuty Docs simply say to set this to "trigger", for reasons
+           unknown.
+
+     -p    Print a stock config file to stdout and exit.
+
+     -h    Explain what ${0##*/} does, (this text).
+
+     -V    Print the ${0##*/} version to stdout, and exit.
+
+     -z    Unset debug, (can be set using ENV)
+
+     -j    Prints json message, does not trigger PagerDuy, useful for debugging.
+
+  STDIN HANDLING:
+     Piping stdin to ${0##*/} will add the stdin message as a text blob
+     to the event details.  For example,
+       $ netstat -nr | ${0##*/}
+
+  CONFIG FILES:
+     ${0##*/} can use values in config files, but command line arguements
+     act as final overrides.  ENV vars recieve no special processing, so
+     they are overridden by both config, and command line args.
+     ${0##*/} attempts to source config files in the following locations:
+
+`printconfpaths '       '`
+
+  ENV:
+      SERVICEKEY may also be set using the '-s' arg
+      DEBUG      performs extra checks and sends warnings and errors to stdout 
+
+  DEPENDENCIES:
+     This utility requires the curl(1) utility,
+     but is otherwise intended to be quite portable. 
+
+  BUGS:
+      This help text should really be a man page. 
+      Double quote characters used in incident_key strings will break
+      incident_key output when using the -t flag.
+
+EOM
+[ -n "$1" ] && printf "\n${1}\n"
+exit "$ec"
+}
+
+argpreproc() {
+# just grab the few flags we want manually,
+# leaving args intact for getopts later.
+debug "argpreproc, pre-process args"
+debug "$*"
+for i in "$@" ; do
+  if [ "$i" = '-p' ] ; then
+    printconfig
+  elif [ "$i" = '-V' ] ; then
+    echo "${0##*/} ${version}" ; exit 0    
+  elif [ "$i" = '-h' ] ; then
+    ec=1 fd=1 usage
+  fi
+done
+}
+
+argproc() {
+debug "argproc, big args processing, mostly vars"
+debug "$*"
+while getopts 's:Iik:d:c:u:e:tjpzVh' opt; do
+case "$opt" in
+s) service_key="${OPTARG}"
+   debug "service_key=${service_key}"
+;;
+I) incident_key="${hostkey}"
+   debug "incident_key=${incident_key}"
+   turnkey=1
+;;
+i) incident_key=""
+   debug "incident_key=${incident_key}"
+   turnkey=2
+;;
+k) incident_key="${OPTARG}"
+   debug "incident_key=${incident_key}"
+   turnkey=3
+;;
+d) description="`hostname`: ${OPTARG}"
+;;
+c) client="${OPTARG}"
+;;
+u) client_url="${OPTARG}"
+;;
+e) event_type="${OPTARG}"
+;;
+t) print_incident_key=1
+;;
+j) _jsonprint=1
+;;
+p) printconfig 
+;;
+z) unset DEBUG
+;;
+V) echo "${0##*/} ${version}" ; exit 0
+;;
+h) ec=1 fd=1 usage
+;;
+# *) usage
+# ;;
+esac
+done
+shift $((OPTIND - 1))
+}
+
+printconfpaths() {
+for i in `echo "$_configpaths" | sed 's/\:/ /g'` ; do
+echo "${1}${i}"
+done
+}
+
+printconfig() {
+# prints a stock config file to stdout,
+fd="${fd:-1}" # stdout
+ec="${ec:-0}" # normal exit
+try cat - 2>&$fd << EOM
+##############################################################################
+# https://developer.pagerduty.com/documentation/integration/events/trigger
+#   config originally generated by: ${0##*/} ${version}
+#
+#   This file can live in: /etc/${_CONFNAME}
+#   For more info, '$ ${0##*/} -h'
+
+## The only required value,
+service_key=""
+
+# incident_key="string"
+# description="string"
+# client="string"
+# client_url="proto://fqdn.tld/path/uri/"
+# event_type="trigger"
+EOM
+exit "${ec}"
+}
+
+sourceif() {
+# only sources file if it exists,
+if [ -r "${1}" ] ; then
+  try . "${1}"
+  debug "# sourcing config ${1}"
+  [ ! -n "$DEBUG" ] || grep -v '^#' "${1}" | grep '.' >&2;
+  _count=$((_count+1)) # keep it portable
+  break
+else
+  debug "# config ${1} does not exist or is not readable by user: `who am i`"
+fi
+}
+
+ipcount() {
+# returns IP addresses of host,
+# attempts to be portable, exec's like mad:
+/sbin/ifconfig \
+ | grep inet \
+ | sed 's/addr://g' \
+ | awk '{print $2}' \
+ | grep -v '^::1' \
+ | grep -v 127.0.0.1 \
+ | sort -nr | tr '\n' ' ' | sed 's/,$//'
+}
+
+ip_json() {
+ic=0
+for i in `ipcount` ; do
+echo "        \"IP${ic}\": \"${i}\","
+ic=$((ic+1))
+done
+}
+
+incident_json() {
+if [ "${_incident_key}" != "" ] ; then
+      echo "      \"incident_key\": \"${_incident_key}\","
+  break
+else
+  break
+fi
+}
+
+stdin_detail() {
+if [ ! -t 0 ]; then
+  printf "        \"stdin_detail\": \""
+  while read -r line ; do
+    printf  "${line}\\\n"
+  done
+  echo "\","
+fi
+}
+
+postmsg() {
+try cat << EOM
+{    
+      "service_key": "${_service_key:?You must supply a PagerDuty API key, -h for help.}",
+      "event_type": "trigger",
+      "description": "${_description}",
+      "client": "${_client}",
+`incident_json`
+      "client_url": "",
+      "details": {
+        "hostname": "`hostname`",
+`ip_json`
+`stdin_detail`
+        "calling command": "${_cmd}",
+        "user": "`who am i`",
+        "PID": "${PID}",
+        "PPID": "${PPID}",
+        "PWD": "${PWD}",
+        "${0##*/}": "${0}",
+        "uptime": "`uptime`"
+      }
+}
+EOM
+}
+
+parsekey() {
+echo "${*}" \
+  | try awk 'BEGIN { FS = "\"incident_key\":\"" } {print $2}' \
+  | try awk 'BEGIN { FS = "\"" } {print $1}' \
+  | grep .
+}
+
+## vars
+
+version="0.1"
+  debug "version=$version"
+
+# This is intended to be hard-coded, this utility is specifically
+# designed to work with the PagerDuty API,
+pdurl="https://events.pagerduty.com/generic/2010-04-15/create_event.json"
+#pdurl="http://blackskyresearch.net"
+
+dothere=$(cd "${0%/*}" 2>/dev/null; echo "`pwd -L`")
+  debug "dothere=$dothere"
+myhier="${dothere%/*}"
+  debug "myhier=$myhier"
+
+hostkey="${0##*/}.`hostname`.`uname -s`.${version}"
+  debug "hostkey=$hostkey"
+turnkey=0
+_jsonprint=0
+_cmd="${0} ${*}"
+
+ipv4addrs="`ipcount`"
+  debug "ipv4addrs=${ipv4addrs}"
+basedescribe="${description:-Error on `hostname`}"
+  debug "basedescribe=${basedescribe}"
+
+# Source our config,
+_count=0 # number of configs sourced
+_CONFNAME="${0##*/}.conf"
+# The paths order we are searching thorugh, colon delimited:
+_configpaths="${myhier}/etc:${HOME}/etc:/usr/local/etc:/etc/defaults:/etc/opt:/etc"
+# pre-process for for args that are not setting vars,
+argpreproc "${@}"
+for i in `echo "$_configpaths" | sed 's/\:/ /g'` ; do
+  debug "config to source: ${i}"
+  sourceif "${i}/${_CONFNAME}"
+done
+#if [ $_count -le 0 ] ; then
+#  echo "WARNING: ${_CONFNAME} not found." >&2
+#fi
+
+# process remaining command line args, overriding config,
+argproc "${@}"
+
+# now, scrub and settle var defaults,
+_service_key="${service_key:?You must supply a PagerDuty API key, -h for help.}"
+  debug "_service_key=${_service_key}"
+if [ ${turnkey} -le 0 ] ; then
+  _incident_key="${incident_key:-$hostkey}"
+else
+  _incident_key="${incident_key}"
+fi
+  debug "_incident_key=${_incident_key}"
+_description="${description:-Undefined $basedescribe}"
+  debug "_description=${_description}"
+#_details="${details:-/dev/null}"
+#  debug "_details=${_details}"
+_client="${client:-${0##*/} ${version}}"
+  debug "_client=${_client}"
+_client_url="${client_url}"
+  debug "_client_url=${_client_url}"
+_event_type="${event_type:-trigger}"
+  debug "_event_type=${_event_type}"
+
+
+## action
+
+if ! `which -s curl` ; then
+  # TODO: perhaps a fools errand, create netcat http POST function? to ssl?
+  # Also tricky, to preserve json \n chars...
+  die "Error: Missing dependency, requires curl(1)."
+fi
+
+if [ ${_jsonprint} -eq 1 ] ; then postmsg ; exit 0 ; fi
+
+catch() {
+"$@" ||\
+  die "cannot $*";
+}
+
+output=$(try curl -f -s -H 'Transfer-Encoding: chunked' -H 'Content-type: application/json' -X POST \
+    -d "`postmsg`" \
+    "${pdurl}" 2>&1)
+
+returnkey="`parsekey ${output}`"
+  debug "returnkey=${returnkey}"
+if [ "${print_incident_key}" = "1" ] && [ "${returnkey}" != "" ] ; then
+  echo ${returnkey}
+elif [ "${print_incident_key}" = "1" ] ; then
+  echo "${_incident_key}"
+fi
+
+echo "$output" | sed q | logger
+
+true
