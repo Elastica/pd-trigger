@@ -41,8 +41,11 @@ try cat - 2>&$fd << EOM
 ${0##*/} -- trigger PagerDuty alerts
 
   usage:
-       ${0##*/}  command [args]
-       ${0##*/}  [-v|d|D] [-V]  [-h]
+       ${0##*/} [-h]
+       ${0##*/} [-s string] [-k string] [-I|i]
+       ${0##*/} [-d string] [-c string] [-u string] [-e string]
+       ${0##*/} [-p]
+       ${0##*/} [-v|z|J]
 
   The ${0##*/}  utility can be used to trigger PD incidents, straight from the
   shell, or any program.  PagerDuty "Trigger Events" are fully implemented as
@@ -125,9 +128,15 @@ Arguements and config parameters for for ${0##*/}:
      ${0##*/} can use values in config files, but command line arguements
      act as final overrides.  ENV vars recieve no special processing, so
      they are overridden by both config, and command line args.
-     ${0##*/} attempts to source config files in the following locations:
+     ${0##*/} attempts to source config files in the following locations,
+     in the following order:
 
-`printconfpaths '       '`
+       ../etc/${0##*/}.conf (assumes install to bin or sbin hier(7))
+       \$HOME/etc/${0##*/}.conf
+       /usr/local/etc/${0##*/}.conf
+       /etc/defaults/${0##*/}.conf
+       /etc/opt/${0##*/}.conf
+       /etc/${0##*/}.conf
 
   ENV:
       SERVICEKEY may also be set using the '-s' arg
@@ -208,12 +217,6 @@ h) ec=1 fd=1 usage
 esac
 done
 shift $((OPTIND - 1))
-}
-
-printconfpaths() {
-for i in `echo "$_configpaths" | sed 's/\:/ /g'` ; do
-echo "${1}${i}"
-done
 }
 
 printconfig() {
@@ -352,7 +355,7 @@ basedescribe="${description:-Error on `hostname`}"
 _count=0 # number of configs sourced
 _CONFNAME="${0##*/}.conf"
 # The paths order we are searching thorugh, colon delimited:
-_configpaths="${myhier}/etc:${HOME}/etc:/usr/local/etc:/etc/defaults:/etc/opt:/etc"
+_configpaths="${myhier}/etc:${HOME}/etc:/usr/local/etc:/etc/defaults:/etc/opt:/opt/etc:/etc"
 # pre-process for for args that are not setting vars,
 argpreproc "${@}"
 for i in `echo "$_configpaths" | sed 's/\:/ /g'` ; do
