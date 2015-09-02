@@ -1,6 +1,7 @@
 pd-trigger -- A lightweight, portable, and robust PagerDuty trigger utility.
 
 ##############################################################################
+
 The pd-trigger  utility can be used to trigger PD incidents, straight from the
 shell, or any program.  pd-trigger is written in portable Bourne-ish sh(1).
 
@@ -28,6 +29,7 @@ stdout in pipes from other programs, as plain text.
 
 
 ##############################################################################
+
 INSTALLATION:
 
 pd-trigger is a very self-contained utility, and can be installed
@@ -43,6 +45,7 @@ script for more info.
 
     
 ##############################################################################
+
 EXAMPLES:
 
    # prints help page,
@@ -78,3 +81,5 @@ EXAMPLES:
 When successfully exiting, pd-trigger will dump PagerDuty response messages
 lazily into syslog, and has command arguements to return incident state
 strings to calling processes if desired.
+
+
