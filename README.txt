@@ -24,6 +24,21 @@ pd-trigger should work well on the following platforms as well,
 
 Can be run from cron(1), called from other UNIX programs, and receive
 stdout in pipes from other programs, as plain text.
+
+
+INSTALLATION:
+
+pd-trigger is a very self-contained utility, and can be installed
+a number of different ways.  A simple installer is included:
+
+  $ ./install
+
+If you run the installer as root, it will atempt to install into
+/usr/local/bin by default.  If any other user, it will attempt to
+install ~/bin for that user.  There are ENV overrides to allow 
+changing install location, among other install details- read the
+script for more info.
+
     
 EXAMPLES:
 
