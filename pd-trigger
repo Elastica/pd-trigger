@@ -49,13 +49,13 @@ ${0##*/} -- trigger PagerDuty alerts
 
   The ${0##*/}  utility can be used to trigger PD incidents, straight from the
   shell, or any program.  PagerDuty "Trigger Events" are fully implemented as
-  command line arguements, but "Contexts" currently are not.
+  command line arguments, but "Contexts" currently are not.
   https://developer.pagerduty.com/documentation/integration/events/trigger
 
   When successfully exiting, ${0##*/} will dump PagerDuty response messages
   lazily into syslog.
 
-Arguements and config parameters for for ${0##*/}:
+Arguments and config parameters for for ${0##*/}:
 
      # service_key="string"
      -s string
@@ -74,7 +74,7 @@ Arguements and config parameters for for ${0##*/}:
 
      -I    Host-unique incident key: default, ON
            The event key provides a lazy way to "de-dup" problem reports.
-           Trigger alerts sent without explictly setting an incident_key.
+           Trigger alerts sent without explicitly setting an incident_key.
 
      -i    Allow PagerDuty to set a new unique incident key, explicitly creating
            a new PD alert.
@@ -125,8 +125,8 @@ Arguements and config parameters for for ${0##*/}:
        $ netstat -nr | ${0##*/}
 
   CONFIG FILES:
-     ${0##*/} can use values in config files, but command line arguements
-     act as final overrides.  ENV vars recieve no special processing, so
+     ${0##*/} can use values in config files, but command line arguments
+     act as final overrides.  ENV vars receive no special processing, so
      they are overridden by both config, and command line args.
      ${0##*/} attempts to source config files in the following locations,
      in the following order:

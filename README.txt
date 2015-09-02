@@ -21,7 +21,7 @@ pd-trigger should work well on the following platforms as well,
   - OpenBSD
   - CentOS/RHEL 
   - NetBSD
-  - Illuminos/Solaris
+  - Illumos/Solaris
   - DragonFlyBSD
 
 Can be run from cron(1), called from other UNIX programs, and receive
@@ -37,7 +37,7 @@ a number of different ways.  A simple installer is included:
 
   $ ./install
 
-If you run the installer as root, it will atempt to install into
+If you run the installer as root, it will attempt to install into
 /usr/local/bin by default.  If any other user, it will attempt to
 install ~/bin for that user.  There are ENV overrides to allow 
 changing install location, among other install details- read the
@@ -74,7 +74,7 @@ EXAMPLES:
      $ pd-trigger -j
 
    # Print incident_key string to stdout,
-   # (replies dump to syslog as well, by defualt)
+   # (replies dump to syslog as well, by default)
 
      $ pd-trigger -t
 
