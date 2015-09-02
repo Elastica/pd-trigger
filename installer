@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# Some influential environment variables:
+#   PREFIX   install hier(7) location
+#   MODE     executable mode, defauts to 755
+#   UMASK    installer umask, default is 22
+
+yell() { echo "$0: $*" >&2; }
+die() { yell "$*"; exit 111; }
+try() { "$@" || die "cannot $*"; }
+
+export PATH="$HOME/bin:/opt/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin"
+
+# a bit superfluous,
+umask "${UMASK:-0022}"
+
+# bulletproof portable,
+user="`who am i | awk '{print $1}'`"
+
+if [ "${user}" = "root" ] ; then
+PREFIX="${PREFIX:-/usr/local}"
+else
+PREFIX="${PREFIX:-$HOME}"
+fi
+
+dothere=$(cd "${0%/*}" 2>/dev/null; echo "`pwd -L`")
+myhier="${dothere%/*}"
+
+# using it
+echo "## installing pd-trigger utility ##"
+try mkdir -p "${PREFIX}/bin"
+try cp -v "${dothere}/pd-trigger" /tmp/pd-trigger.installing 
+try chown "${user}" /tmp/pd-trigger.installing
+try chmod -vv "${MODE:-0755}" /tmp/pd-trigger.installing
+try mv -v /tmp/pd-trigger.installing "${PREFIX}/bin/pd-trigger"
+echo "## pd-trigger utility install complete ##"
+
+exit 0
