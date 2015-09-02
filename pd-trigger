@@ -218,8 +218,6 @@ done
 
 printconfig() {
 # prints a stock config file to stdout,
-fd="${fd:-1}" # stdout
-ec="${ec:-0}" # normal exit
 try cat - 2>&$fd << EOM
 ##############################################################################
 # https://developer.pagerduty.com/documentation/integration/events/trigger
@@ -237,7 +235,7 @@ service_key=""
 # client_url="proto://fqdn.tld/path/uri/"
 # event_type="trigger"
 EOM
-exit "${ec}"
+exit 0
 }
 
 sourceif() {
