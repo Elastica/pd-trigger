@@ -1,5 +1,6 @@
-pd-trigger A lightweight, portable, and robust PagerDuty trigger utility.
+pd-trigger -- A lightweight, portable, and robust PagerDuty trigger utility.
 
+##############################################################################
 The pd-trigger  utility can be used to trigger PD incidents, straight from the
 shell, or any program.  pd-trigger is written in portable Bourne-ish sh(1).
 
@@ -26,6 +27,7 @@ Can be run from cron(1), called from other UNIX programs, and receive
 stdout in pipes from other programs, as plain text.
 
 
+##############################################################################
 INSTALLATION:
 
 pd-trigger is a very self-contained utility, and can be installed
@@ -40,6 +42,7 @@ changing install location, among other install details- read the
 script for more info.
 
     
+##############################################################################
 EXAMPLES:
 
    # prints help page,
