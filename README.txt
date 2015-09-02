@@ -79,7 +79,7 @@ EXAMPLES:
      $ pd-trigger -t
 
 When successfully exiting, pd-trigger will dump PagerDuty response messages
-lazily into syslog, and has command arguements to return incident state
+lazily into syslog, and has command arguments to return incident state
 strings to calling processes if desired.
 
 
