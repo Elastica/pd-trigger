@@ -5,7 +5,8 @@ A lightweight, portable, and robust PagerDuty trigger utility.
 ---------------------
 
 The pd-trigger  utility can be used to trigger PD incidents, straight from the
-shell, or any program.  pd-trigger is written in portable Bourne-ish sh(1).
+shell, or any program.  pd-trigger is written in portable Bourne-ish sh(1),
+implementing the the following Trigger API:
 
   https://developer.pagerduty.com/documentation/integration/events/trigger
 
@@ -27,12 +28,14 @@ pd-trigger should work well on the following platforms as well,
 -    Illumos/Solaris
 -    DragonFlyBSD
 
-Can be run from cron(1), called from other UNIX programs, and receive stdout in pipes from other programs, as plain text.
+Can be run from cron(1), called from other UNIX programs, and receive stdout
+in pipes from other programs, as plain text.
 
 
 ### Installation
 
-pd-trigger is a very self-contained utility, and can be installed a number of different ways.  A simple installer is included:
+pd-trigger is a very self-contained utility, and can be installed a number
+of different ways.  A simple installer is included:
 
     $ ./install
 
@@ -70,10 +73,13 @@ view the JSON payload (but do not trigger an event),
 
     $ pd-trigger -j
 
-Print incident_key string to stdout, (replies dump to syslog as well, by default),
+Print incident_key string to stdout,
+(replies dump to syslog as well, by default),
 
     $ pd-trigger -t
 
-When successfully exiting, pd-trigger will dump PagerDuty response messages lazily into syslog(1) via logger(1), and has command arguments to return incident state strings to calling processes if desired.
+When successfully exiting, pd-trigger will dump PagerDuty response messages
+lazily into syslog(1) via logger(1), and has command arguments to return
+incident state strings to calling processes if desired.
 
 
