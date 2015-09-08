@@ -44,7 +44,7 @@ ${0##*/} -- trigger PagerDuty alerts
        ${0##*/} [-h]
        ${0##*/} [-s string] [-k string] [-I|i]
        ${0##*/} [-d string] [-c string] [-u string] [-e string]
-       ${0##*/} [-p]
+       ${0##*/} [-c]
        ${0##*/} [-v|z|J]
 
   The ${0##*/}  utility can be used to trigger PD incidents, straight from the
@@ -109,7 +109,7 @@ Arguments and config parameters for for ${0##*/}:
            PagerDuty Docs simply say to set this to "trigger", for reasons
            unknown.
 
-     -p    Print a stock config file to stdout and exit.
+     -c    Print a stock config file to stdout and exit.
 
      -h    Explain what ${0##*/} does, (this text).
 
@@ -162,7 +162,7 @@ argpreproc() {
 debug "argpreproc, pre-process args"
 debug "$*"
 for i in "$@" ; do
-  if [ "$i" = '-p' ] ; then
+  if [ "$i" = '-c' ] ; then
     printconfig
   elif [ "$i" = '-V' ] ; then
     echo "${0##*/} ${version}" ; exit 0    
@@ -175,7 +175,7 @@ done
 argproc() {
 debug "argproc, big args processing, mostly vars"
 debug "$*"
-while getopts 's:Iik:d:c:u:e:tjpzVh' opt; do
+while getopts 's:Iik:d:c:u:e:tjczVh' opt; do
 case "$opt" in
 s) service_key="${OPTARG}"
    debug "service_key=${service_key}"
@@ -204,7 +204,7 @@ t) print_incident_key=1
 ;;
 j) _jsonprint=1
 ;;
-p) printconfig 
+c) printconfig 
 ;;
 z) unset DEBUG
 ;;
@@ -327,7 +327,7 @@ echo "${*}" \
 
 ## vars
 
-version="0.1"
+version="0.2"
   debug "version=$version"
 
 # This is intended to be hard-coded, this utility is specifically
@@ -399,11 +399,6 @@ if ! `which -s curl` ; then
 fi
 
 if [ ${_jsonprint} -eq 1 ] ; then postmsg ; exit 0 ; fi
-
-catch() {
-"$@" ||\
-  die "cannot $*";
-}
 
 output=$(try curl -f -s -H 'Transfer-Encoding: chunked' -H 'Content-type: application/json' -X POST \
     -d "`postmsg`" \
