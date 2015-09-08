@@ -44,8 +44,8 @@ ${0##*/} -- trigger PagerDuty alerts
        ${0##*/} [-h]
        ${0##*/} [-s string] [-k string] [-I|i]
        ${0##*/} [-d string] [-c string] [-u string] [-e string]
-       ${0##*/} [-c]
-       ${0##*/} [-v|z|J]
+       ${0##*/} [-v|z]
+       ${0##*/} [-c|j]
 
   The ${0##*/}  utility can be used to trigger PD incidents, straight from the
   shell, or any program.  PagerDuty "Trigger Events" are fully implemented as
@@ -62,6 +62,10 @@ Arguments and config parameters for for ${0##*/}:
            service_key, the only flag REQUIRED for use, may also be set in ENV.
            The GUID of one of your "Generic API" services. This is the 
            "service key" listed on a Generic API's service detail page.
+           WARNING: the PagerDuty API will return "success" messages for any
+           32 character string, (e.g. 00000000000000000000000000000000 is valid)
+           This can lead to to a silent "dud" event trigger.  On the bright side,
+           this can also be used to test the behavior of this utility.
 
      # incident_key="string"
      -k string
@@ -119,6 +123,8 @@ Arguments and config parameters for for ${0##*/}:
 
      -j    Prints json message, does not trigger PagerDuy, useful for debugging.
 
+     -v    Verbose, print all JSON http server respnses to stdout and stderr.
+
   STDIN HANDLING:
      Piping stdin to ${0##*/} will add the stdin message as a text blob
      to the event details.  For example,
@@ -175,7 +181,7 @@ done
 argproc() {
 debug "argproc, big args processing, mostly vars"
 debug "$*"
-while getopts 's:Iik:d:c:u:e:tjczVh' opt; do
+while getopts 's:Iik:d:c:u:e:tvjczVh' opt; do
 case "$opt" in
 s) service_key="${OPTARG}"
    debug "service_key=${service_key}"
@@ -201,6 +207,8 @@ u) client_url="${OPTARG}"
 e) event_type="${OPTARG}"
 ;;
 t) print_incident_key=1
+;;
+v) _verbose=1
 ;;
 j) _jsonprint=1
 ;;
@@ -345,6 +353,7 @@ hostkey="${0##*/}.`hostname`.`uname -s`.${version}"
 turnkey=0
 _jsonprint=0
 _cmd="${0} ${*}"
+_verbose=0
 
 ipv4addrs="`ipcount`"
   debug "ipv4addrs=${ipv4addrs}"
@@ -400,6 +409,56 @@ fi
 
 if [ ${_jsonprint} -eq 1 ] ; then postmsg ; exit 0 ; fi
 
+curlreq() {
+# makes the curl request, sets response bits as vars for handling,
+# sets _return (http code) and _response (payload)
+_curlresp=$(curl -s \
+  -H 'Transfer-Encoding: chunked' \
+  -H 'Content-type: application/json' -X POST \
+  -d "`postmsg`" \
+  --write-out "%{http_code}" \
+  "${pdurl}")
+  debug "_curlresp=${_curlresp}"
+
+_resp="`echo "${_curlresp}" | awk -F"}" '{print $NF}'`"
+debug "_resp=${_resp}"
+_return="`echo "${_curlresp}" | try rev | try cut -c 4- | rev`"
+debug "_return=${_return}"
+}
+
+if [ ${_verbose} -eq 1 ] ; then
+debug "Forcing all JSON response to stdout, exit 0 only if http 200."
+  curlreq
+  if [ "${_resp}" = "200" ] ; then
+    printf "${_return}"
+    exit 0
+  else
+    yell "HTTP response code is ${_resp}"
+    echo "${_return}"
+    exit 44 # not defined by curl, lets use it.
+  fi
+else
+debug "Disregarding JSON formatted response, exit 0 only if http 200."
+  curlreq
+  _returnkey="`parsekey ${_return}`"
+  debug "_returnkey=${_returnkey}"
+
+  if [ "${print_incident_key}" = "1" ] && [ "${_returnkey}" != "" ] ; then
+    echo ${_returnkey}
+  elif [ "${print_incident_key}" = "1" ] ; then
+    echo ${_returnkey}
+  fi
+  echo "${_returnkey} ${_return}" | tr '\n' ' ' | logger
+fi
+
+exit 0
+
+exit 44
+
+
+
+##############################################################################
+##############################################################################
 output=$(try curl -f -s -H 'Transfer-Encoding: chunked' -H 'Content-type: application/json' -X POST \
     -d "`postmsg`" \
     "${pdurl}" 2>&1)
