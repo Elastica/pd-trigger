@@ -424,8 +424,10 @@ _resp="`echo "${_curlresp}" | awk -F"}" '{print $NF}'`"
 debug "_resp=${_resp}"
 _return="`echo "${_curlresp}" | try rev | try cut -c 4- | rev`"
 debug "_return=${_return}"
+# TODO: logger dump here
 }
 
+# curl requests and output handling,
 if [ ${_verbose} -eq 1 ] ; then
 debug "Forcing all JSON response to stdout, exit 0 only if http 200."
   curlreq
@@ -442,13 +444,25 @@ debug "Disregarding JSON formatted response, exit 0 only if http 200."
   curlreq
   _returnkey="`parsekey ${_return}`"
   debug "_returnkey=${_returnkey}"
+  if [ "${_resp}" = "200" ] && [ "${print_incident_key}" = "1" ] ; then
+    echo "${_returnkey}"
+    exit 0
+  elif [ "${_resp}" = "200" ] ; then
+    exit 0
+  else
+    yell "HTTP response code is ${_resp}"
+    yell "${_return}"
+    exit 44 # not defined by curl, lets use it.
+  fi
 
   if [ "${print_incident_key}" = "1" ] && [ "${_returnkey}" != "" ] ; then
     echo ${_returnkey}
   elif [ "${print_incident_key}" = "1" ] ; then
     echo ${_returnkey}
   fi
-  echo "${_returnkey} ${_return}" | tr '\n' ' ' | logger
+
+  # TODO: make logger(1) based function as default, don't block if no logger(1) in $PATH
+  #echo "${_returnkey} ${_return}" | tr '\n' ' ' | logger
 fi
 
 exit 0
