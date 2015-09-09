@@ -83,8 +83,11 @@ Arguments and config parameters for for ${0##*/}:
      -i    Allow PagerDuty to set a new unique incident key, explicitly creating
            a new PD alert.
 
-     -t    Print incident_key string to stdout, useful when a parent program can
-           use this information to keep issue state.
+     -t    Print only the incident_key string to stdout, useful when a parent
+           program can use this information to keep issue state.
+
+     -q    Quiet mode, does not print anything to stdout.  On error, all output
+           prints to stderr.
 
      # description="string"
      -d string
@@ -121,6 +124,7 @@ Arguments and config parameters for for ${0##*/}:
 
      -z    Unset debug, (can be set using ENV)
 
+## TODO: change -j to -p ?
      -j    Prints json message, does not trigger PagerDuy, useful for debugging.
 
      -v    Verbose, print all JSON http server respnses to stdout and stderr.
@@ -181,7 +185,7 @@ done
 argproc() {
 debug "argproc, big args processing, mostly vars"
 debug "$*"
-while getopts 's:Iik:d:c:u:e:tvjczVh' opt; do
+while getopts 's:Iik:d:c:u:e:tqvjczVh' opt; do
 case "$opt" in
 s) service_key="${OPTARG}"
    debug "service_key=${service_key}"
@@ -206,7 +210,9 @@ u) client_url="${OPTARG}"
 ;;
 e) event_type="${OPTARG}"
 ;;
-t) print_incident_key=1
+t) print_incident_key="short"
+;;
+q) print_incident_key="quiet"
 ;;
 v) _verbose=1
 ;;
@@ -424,17 +430,21 @@ _resp="`echo "${_curlresp}" | awk -F"}" '{print $NF}'`"
 debug "_resp=${_resp}"
 _return="`echo "${_curlresp}" | try rev | try cut -c 4- | rev`"
 debug "_return=${_return}"
-# TODO: logger dump here
 }
+# TODO: make logger(1) based function as default, don't block if no logger(1) in $PATH
+#echo "${_returnkey} ${_return}" | tr '\n' ' ' | logger
 
-# curl requests and output handling,
+
+# curl requests and proper output handling,
 if [ ${_verbose} -eq 1 ] ; then
 debug "Forcing all JSON response to stdout, exit 0 only if http 200."
   curlreq
   if [ "${_resp}" = "200" ] ; then
+    # TODO: logger dump here
     printf "${_return}"
     exit 0
   else
+    # TODO: logger dump here
     yell "HTTP response code is ${_resp}"
     echo "${_return}"
     exit 44 # not defined by curl, lets use it.
@@ -444,25 +454,22 @@ debug "Disregarding JSON formatted response, exit 0 only if http 200."
   curlreq
   _returnkey="`parsekey ${_return}`"
   debug "_returnkey=${_returnkey}"
-  if [ "${_resp}" = "200" ] && [ "${print_incident_key}" = "1" ] ; then
+  if [ "${_resp}" = "200" ] && [ "${print_incident_key}" = "short" ] ; then
+    # TODO: logger dump here
     echo "${_returnkey}"
     exit 0
+  elif [ "${_resp}" = "200" ] && [ "${print_incident_key}" = "quiet" ] ; then
+    # TODO: logger dump here
+    exit 0
   elif [ "${_resp}" = "200" ] ; then
+    # TODO: logger dump here
+    echo "triggered PagerDuty incident id: '${_returnkey}'"
     exit 0
   else
-    yell "HTTP response code is ${_resp}"
-    yell "${_return}"
+    yell "Error HTTP response code is: ${_resp}, ${_return}"
+    # TODO: logger dump here
     exit 44 # not defined by curl, lets use it.
   fi
-
-  if [ "${print_incident_key}" = "1" ] && [ "${_returnkey}" != "" ] ; then
-    echo ${_returnkey}
-  elif [ "${print_incident_key}" = "1" ] ; then
-    echo ${_returnkey}
-  fi
-
-  # TODO: make logger(1) based function as default, don't block if no logger(1) in $PATH
-  #echo "${_returnkey} ${_return}" | tr '\n' ' ' | logger
 fi
 
 exit 0
