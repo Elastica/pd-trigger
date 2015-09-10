@@ -378,7 +378,7 @@ breadcrumb() {
 
 ## vars
 
-version="0.2"
+version="0.9"
   debug "version=$version"
 
 # This is intended to be hard-coded, this utility is specifically
