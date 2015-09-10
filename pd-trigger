@@ -359,7 +359,7 @@ debug "_return=${_return}"
 breadcrumb() {
 # a lazy response dump to logger(1)
 # does not block if no logger(1) in $PATH
-  [ `which logger` ] && echo "${*}" | tr '\n' ' ' | logger
+  [ `which -s logger` ] && echo "${*}" | tr '\n' ' ' | logger
 }
 
 
