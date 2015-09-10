@@ -44,7 +44,7 @@ ${0##*/} -- trigger PagerDuty alerts
        ${0##*/} [-h]
        ${0##*/} [-s string] [-k string] [-I|i]
        ${0##*/} [-d string] [-c string] [-u string] [-e string]
-       ${0##*/} [-v|z]
+       ${0##*/} [-v|j|z]
        ${0##*/} [-c|j]
 
   The ${0##*/}  utility can be used to trigger PD incidents, straight from the
@@ -116,18 +116,20 @@ Arguments and config parameters for for ${0##*/}:
            PagerDuty Docs simply say to set this to "trigger", for reasons
            unknown.
 
+     -v    Verbose, print all JSON http server respnses to stdout and stderr.
+
+     -j    Synonym for -v Verbose.
+
      -c    Print a stock config file to stdout and exit.
 
      -h    Explain what ${0##*/} does, (this text).
 
      -V    Print the ${0##*/} version to stdout, and exit.
 
-     -z    Unset debug, (can be set using ENV)
+     -p    Prints json message and exit, does not trigger PagerDuy, useful
+           for debugging.
 
-## TODO: change -j to -p ?
-     -j    Prints json message, does not trigger PagerDuy, useful for debugging.
-
-     -v    Verbose, print all JSON http server respnses to stdout and stderr.
+     -z    Unset debug, (can be set using ENV).
 
   STDIN HANDLING:
      Piping stdin to ${0##*/} will add the stdin message as a text blob
@@ -185,7 +187,7 @@ done
 argproc() {
 debug "argproc, big args processing, mostly vars"
 debug "$*"
-while getopts 's:Iik:d:c:u:e:tqvjczVh' opt; do
+while getopts 's:Iik:d:c:u:e:tqvjpczVh' opt; do
 case "$opt" in
 s) service_key="${OPTARG}"
    debug "service_key=${service_key}"
@@ -216,7 +218,9 @@ q) print_incident_key="quiet"
 ;;
 v) _verbose=1
 ;;
-j) _jsonprint=1
+j) _verbose=1
+;;
+p) _jsonbail=1
 ;;
 c) printconfig 
 ;;
@@ -381,7 +385,7 @@ myhier="${dothere%/*}"
 hostkey="${0##*/}.`hostname`.`uname -s`.${version}"
   debug "hostkey=$hostkey"
 turnkey=0
-_jsonprint=0
+_jsonbail=0
 _cmd="${0} ${*}"
 _verbose=0
 
@@ -437,7 +441,7 @@ if ! `which -s curl` ; then
   die "Error: Missing dependency, requires curl(1)."
 fi
 
-if [ ${_jsonprint} -eq 1 ] ; then postmsg ; exit 0 ; fi
+if [ ${_jsonbail} -eq 1 ] ; then postmsg ; exit 0 ; fi
 
 # service request and proper curl output handling,
 if [ ${_verbose} -eq 1 ] ; then
@@ -473,7 +477,7 @@ debug "Disregarding JSON formatted response, exit 0 only if http 200."
   else
     _errmsg="Error HTTP response code is: ${_resp}, ${_return}"
     yell "${_errmsg}"
-    breadcrumb "${0##*/}: ${_errmsg}"
+    breadcrumb "Error, ${0##*/}: ${_errmsg}"
     exit 44 # not defined by curl, lets use it.
   fi
 fi

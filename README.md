@@ -53,7 +53,7 @@ prints help page,
     $ pd-trigger -h
 
 writes stock config file to stdout,
-(create a PagerDuty Service Key and add it)
+(you must acquire a PagerDuty Service Key)
 
     $ pd-trigger -c > ~/etc/pd-trigger.conf
 
@@ -69,9 +69,15 @@ pipe input into an event description,
 
     $ netstat -nr | pd-trigger
 
-view the JSON payload (but do not trigger an event),
+verbose JSON response to stdout,
+(you may be better off using a PD library for your language of choice),
 
+    $ pd-trigger -v
     $ pd-trigger -j
+
+view the JSON trigger payload (but do not trigger an event),
+
+    $ pd-trigger -p
 
 Print incident_key string to stdout,
 (replies dump to syslog as well, by default),
