@@ -261,6 +261,7 @@ service_key=""
 # client="string"
 # client_url="proto://fqdn.tld/path/uri/"
 # event_type="trigger"
+# syslog_breadcrumbs="ON"
 EOM
 exit 0
 }
@@ -371,7 +372,7 @@ breadcrumb() {
 # does not block if no logger(1) in $PATH
   debug "_syslog=${_syslog}"
   [ "${_syslog}" = "ON" ] && `which -s logger` && \
-    echo "${*}" | tr '\n' ' ' | logger
+    echo "${0##*/}: ${*}" | tr '\n' ' ' | logger
 }
 
 
@@ -396,7 +397,6 @@ turnkey=0
 _jsonbail=0
 _cmd="${0} ${*}"
 _verbose=0
-_syslog="${_syslog:-ON}"
 
 ipv4addrs="`ipcount`"
   debug "ipv4addrs=${ipv4addrs}"
@@ -414,9 +414,7 @@ for i in `echo "$_configpaths" | sed 's/\:/ /g'` ; do
   debug "config to source: ${i}"
   sourceif "${i}/${_CONFNAME}"
 done
-#if [ $_count -le 0 ] ; then
-#  echo "WARNING: ${_CONFNAME} not found." >&2
-#fi
+_syslog="${syslog_breadcrumbs:-ON}"
 
 # process remaining command line args, overriding config,
 argproc "${@}"
@@ -458,12 +456,12 @@ debug "Forcing all JSON response to stdout, exit 0 only if http 200."
   curlreq
   if [ "${_resp}" = "200" ] ; then
     printf "${_return}"
-    breadcrumb "${0##*/}: ${_return}"
+    breadcrumb "${_return}"
     exit 0
   else
     yell "HTTP response code is ${_resp}"
     echo "${_return}"
-    breadcrumb "Error, ${0##*/} http ${_resp}: ${_return}"
+    breadcrumb "Error, http ${_resp}: ${_return}"
     exit 44 # not defined by curl, lets use it.
   fi
 else
@@ -473,19 +471,19 @@ debug "Disregarding JSON formatted response, exit 0 only if http 200."
   debug "_returnkey=${_returnkey}"
   if [ "${_resp}" = "200" ] && [ "${print_incident_key}" = "short" ] ; then
     echo "${_returnkey}"
-    breadcrumb "${0##*/}: ${_return}"
+    breadcrumb "${_return}"
     exit 0
   elif [ "${_resp}" = "200" ] && [ "${print_incident_key}" = "quiet" ] ; then
-    breadcrumb "${0##*/}: ${_return}"
+    breadcrumb "${_return}"
     exit 0
   elif [ "${_resp}" = "200" ] ; then
     echo "triggered PagerDuty incident id: '${_returnkey}'"
-    breadcrumb "${0##*/}: ${_return}"
+    breadcrumb "${_return}"
     exit 0
   else
     _errmsg="Error HTTP response code is: ${_resp}, ${_return}"
     yell "${_errmsg}"
-    breadcrumb "Error, ${0##*/}: ${_errmsg}"
+    breadcrumb "Error, http ${_resp}: ${_return}"
     exit 44 # not defined by curl, lets use it.
   fi
 fi
