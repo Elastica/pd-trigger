@@ -52,8 +52,8 @@ ${0##*/} -- trigger PagerDuty alerts
   command line arguments, but "Contexts" currently are not.
   https://developer.pagerduty.com/documentation/integration/events/trigger
 
-  When successfully exiting, ${0##*/} will dump PagerDuty response messages
-  lazily into syslog.
+  When successfully exiting, ${0##*/} will attempt to dump PagerDuty response
+  messages lazily into syslog independent from output handling, by default.
 
 Arguments and config parameters for for ${0##*/}:
 
@@ -87,7 +87,11 @@ Arguments and config parameters for for ${0##*/}:
            program can use this information to keep issue state.
 
      -q    Quiet mode, does not print anything to stdout.  On error, all output
-           prints to stderr.
+           prints to stderr.  Syslog messages still may be logged.
+
+     # syslog_breadcrumbs="[ON|OFF]"
+           client_url, default: "ON"
+     -L    Disable syslog breadcrumb messages.
 
      # description="string"
      -d string
@@ -187,7 +191,7 @@ done
 argproc() {
 debug "argproc, big args processing, mostly vars"
 debug "$*"
-while getopts 's:Iik:d:c:u:e:tqvjpczVh' opt; do
+while getopts 's:Iik:d:c:u:e:tqLvjpczVh' opt; do
 case "$opt" in
 s) service_key="${OPTARG}"
    debug "service_key=${service_key}"
@@ -215,6 +219,8 @@ e) event_type="${OPTARG}"
 t) print_incident_key="short"
 ;;
 q) print_incident_key="quiet"
+;;
+L) _syslog="OFF"
 ;;
 v) _verbose=1
 ;;
@@ -363,7 +369,9 @@ debug "_return=${_return}"
 breadcrumb() {
 # a lazy response dump to logger(1)
 # does not block if no logger(1) in $PATH
-  [ `which -s logger` ] && echo "${*}" | tr '\n' ' ' | logger
+  debug "_syslog=${_syslog}"
+  [ "${_syslog}" = "ON" ] && `which -s logger` && \
+    echo "${*}" | tr '\n' ' ' | logger
 }
 
 
@@ -388,6 +396,7 @@ turnkey=0
 _jsonbail=0
 _cmd="${0} ${*}"
 _verbose=0
+_syslog="${_syslog:-ON}"
 
 ipv4addrs="`ipcount`"
   debug "ipv4addrs=${ipv4addrs}"
@@ -437,7 +446,7 @@ _event_type="${event_type:-trigger}"
 
 if ! `which -s curl` ; then
   # TODO: perhaps a fools errand, create netcat http POST function? to ssl?
-  # Also tricky, to preserve json \n chars...
+  # Also tricky, to preserve json \n chars... but ultimate portability.
   die "Error: Missing dependency, requires curl(1)."
 fi
 
@@ -452,7 +461,6 @@ debug "Forcing all JSON response to stdout, exit 0 only if http 200."
     breadcrumb "${0##*/}: ${_return}"
     exit 0
   else
-    # TODO: logger dump here
     yell "HTTP response code is ${_resp}"
     echo "${_return}"
     breadcrumb "Error, ${0##*/} http ${_resp}: ${_return}"
