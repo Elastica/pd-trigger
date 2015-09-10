@@ -33,6 +33,9 @@ try cp -v "${dothere}/pd-trigger" /tmp/pd-trigger.installing
 try chown "${user}" /tmp/pd-trigger.installing
 try chmod -vv "${MODE:-0755}" /tmp/pd-trigger.installing
 try mv -v /tmp/pd-trigger.installing "${PREFIX}/bin/pd-trigger"
+echo ""
+echo "## To uninstall this program, delete the file: ${PREFIX}/bin/pd-trigger"
+echo ""
 echo "## pd-trigger utility install complete ##"
 
 exit 0
