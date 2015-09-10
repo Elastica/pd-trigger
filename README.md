@@ -55,7 +55,7 @@ prints help page,
 writes stock config file to stdout,
 (you must acquire a PagerDuty Service Key)
 
-    $ pd-trigger -c > ~/etc/pd-trigger.conf
+    $ pd-trigger -c >> ~/etc/pd-trigger.conf
 
 lazily creates a host-unique PD event,
 
@@ -63,7 +63,7 @@ lazily creates a host-unique PD event,
 
 alternatively, specify a Service Key as command arg,
 
-    $ pd-trigger -s "012345678901234567890123456789012"
+    $ pd-trigger -s "00000000000000000000000000000000"
 
 pipe input into an event description,
 
