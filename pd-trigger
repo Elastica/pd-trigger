@@ -431,22 +431,26 @@ debug "_resp=${_resp}"
 _return="`echo "${_curlresp}" | try rev | try cut -c 4- | rev`"
 debug "_return=${_return}"
 }
-# TODO: make logger(1) based function as default, don't block if no logger(1) in $PATH
-#echo "${_returnkey} ${_return}" | tr '\n' ' ' | logger
 
+breadcrumb() {
+# a lazy response dump to logger(1)
+# does not block if no logger(1) in $PATH
+  [ `which logger` ] && echo "${*}" | tr '\n' ' ' | logger
+}
 
 # curl requests and proper output handling,
 if [ ${_verbose} -eq 1 ] ; then
 debug "Forcing all JSON response to stdout, exit 0 only if http 200."
   curlreq
   if [ "${_resp}" = "200" ] ; then
-    # TODO: logger dump here
     printf "${_return}"
+    breadcrumb "${0##*/}: ${_return}"
     exit 0
   else
     # TODO: logger dump here
     yell "HTTP response code is ${_resp}"
     echo "${_return}"
+    breadcrumb "Error, ${0##*/} http ${_resp}: ${_return}"
     exit 44 # not defined by curl, lets use it.
   fi
 else
@@ -455,19 +459,20 @@ debug "Disregarding JSON formatted response, exit 0 only if http 200."
   _returnkey="`parsekey ${_return}`"
   debug "_returnkey=${_returnkey}"
   if [ "${_resp}" = "200" ] && [ "${print_incident_key}" = "short" ] ; then
-    # TODO: logger dump here
     echo "${_returnkey}"
+    breadcrumb "${0##*/}: ${_return}"
     exit 0
   elif [ "${_resp}" = "200" ] && [ "${print_incident_key}" = "quiet" ] ; then
-    # TODO: logger dump here
+    breadcrumb "${0##*/}: ${_return}"
     exit 0
   elif [ "${_resp}" = "200" ] ; then
-    # TODO: logger dump here
     echo "triggered PagerDuty incident id: '${_returnkey}'"
+    breadcrumb "${0##*/}: ${_return}"
     exit 0
   else
-    yell "Error HTTP response code is: ${_resp}, ${_return}"
-    # TODO: logger dump here
+    _errmsg="Error HTTP response code is: ${_resp}, ${_return}"
+    yell "${_errmsg}"
+    breadcrumb "${0##*/}: ${_errmsg}"
     exit 44 # not defined by curl, lets use it.
   fi
 fi
