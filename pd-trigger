@@ -3,19 +3,19 @@
 ################################################################################
 # Copyright (c) 2015, Enigma Technologies, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 # 1. Redistributions of source code must retain the above copyright notice, this
 # list of conditions and the following disclaimer.
-# 
+#
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 # this list of conditions and the following disclaimer in the documentation
 # and/or other materials provided with the distribution.
-# 
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
@@ -60,7 +60,7 @@ Arguments and config parameters for for ${0##*/}:
      # service_key="string"
      -s string
            service_key, the only flag REQUIRED for use, may also be set in ENV.
-           The GUID of one of your "Generic API" services. This is the 
+           The GUID of one of your "Generic API" services. This is the
            "service key" listed on a Generic API's service detail page.
            WARNING: the PagerDuty API will return "success" messages for any
            32 character string, (e.g. 00000000000000000000000000000000 is valid)
@@ -156,14 +156,14 @@ Arguments and config parameters for for ${0##*/}:
 
   ENV:
       SERVICEKEY may also be set using the '-s' arg
-      DEBUG      performs extra checks and sends warnings and errors to stdout 
+      DEBUG      performs extra checks and sends warnings and errors to stdout
 
   DEPENDENCIES:
      This utility requires the curl(1) utility,
-     but is otherwise intended to be quite portable. 
+     but is otherwise intended to be quite portable.
 
   BUGS:
-      This help text should really be a man page. 
+      This help text should really be a man page.
       Double quote characters used in incident_key strings will break
       incident_key output when using the -t flag.
 
@@ -181,7 +181,7 @@ for i in "$@" ; do
   if [ "$i" = '-c' ] ; then
     printconfig
   elif [ "$i" = '-V' ] ; then
-    echo "${0##*/} ${version}" ; exit 0    
+    echo "${0##*/} ${version}" ; exit 0
   elif [ "$i" = '-h' ] ; then
     ec=1 fd=1 usage
   fi
@@ -228,7 +228,7 @@ j) _verbose=1
 ;;
 p) _jsonbail=1
 ;;
-c) printconfig 
+c) printconfig
 ;;
 z) unset DEBUG
 ;;
@@ -320,7 +320,7 @@ fi
 
 postmsg() {
 try cat << EOM
-{    
+{
       "service_key": "${_service_key:?You must supply a PagerDuty API key, -h for help.}",
       "event_type": "trigger",
       "description": "${_description}",
@@ -371,7 +371,7 @@ breadcrumb() {
 # a lazy response dump to logger(1)
 # does not block if no logger(1) in $PATH
   debug "_syslog=${_syslog}"
-  [ "${_syslog}" = "ON" ] && `which -s logger` && \
+  [ "${_syslog}" = "ON" ] && [ -x "$(command -v logger)" ] && \
     echo "${0##*/}: ${*}" | tr '\n' ' ' | logger
 }
 
@@ -441,8 +441,7 @@ _event_type="${event_type:-trigger}"
 
 
 ## action
-
-if ! `which -s curl` ; then
+if [ ! -x "$(command -v curl)" ] ; then
   # TODO: perhaps a fools errand, create netcat http POST function? to ssl?
   # Also tricky, to preserve json \n chars... but ultimate portability.
   die "Error: Missing dependency, requires curl(1)."
